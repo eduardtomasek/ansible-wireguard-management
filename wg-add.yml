@@ -1,0 +1,81 @@
+- hosts: localhost
+  gather_facts: no
+  become: yes
+  vars:
+    client_name: "{{ clientName }}"
+    client_ip: "{{ clientIp }}"
+    client_mask: "{{ clientMask }}"
+    client_dns: "{{ clientDNS }}"
+    wgname: wg0
+    wgport: 51820
+    work_dir: "{{ workDir }}"
+    server_ip: "{{ serverIp }}"
+  tasks:
+    - name: Ensure {{ work_dir }} exists
+      file:
+        path: '{{ work_dir }}'
+        state: directory
+
+    - name: Generate client keys for {{ client_name }}
+      shell:
+        cmd: wg genkey | tee privatekey | wg pubkey > publickey
+        chdir: "{{ work_dir }}"
+
+    - name: Read client privatekey and register into variable
+      shell: cat {{ work_dir }}/privatekey
+      register: privatekey
+
+    - name: Read client publickey and register into variable
+      shell: cat {{ work_dir }}/publickey
+      register: clientpublickey
+
+    - name: Read server publickey of server and register into variable
+      shell: cat /etc/wireguard/publickey
+      register: serverpublickey
+
+    - name: Stop wireguard for {{ wgname }}
+      command: wg-quick down {{ wgname }}
+      register: wireguardstop
+      tags: wireguardrestart
+
+    - name: Add {{ client_name }} to the server
+      blockinfile:
+        path: '/etc/wireguard/{{ wgname }}.conf'
+        marker: "## Added by Ansible"
+        block: |
+            # {{ client_name }}
+            [Peer]
+            PublicKey = {{ clientpublickey.stdout }}
+            AllowedIPs = {{ client_ip }}/32
+            
+    - debug:
+        var: wireguardstop.stderr_lines
+      tags: wireguardrestart
+
+    - name: Start wireguard for {{ wgname }}
+      command: wg-quick up {{ wgname }}
+      register: wireguardstart
+      tags: wireguardrestart
+
+    - debug:
+        var: wireguardstart.stderr_lines
+      tags: wireguardrestart
+
+    - name: Generate client config for {{ client_name }} for full internet access
+      blockinfile:
+        path: "{{ work_dir }}/{{ client_name }}-full.conf"
+        block: |
+            [Interface]
+            PrivateKey = {{ privatekey.stdout }}
+            Address = {{ client_ip }}/{{ client_mask }}
+            DNS = {{ client_dns }}
+            [Peer]
+            PublicKey = {{ serverpublickey.stdout }}
+            AllowedIPs = 0.0.0.0/0
+            Endpoint = {{ server_ip }}:{{ wgport }}
+        state: present
+        create: yes
+
+    - name: Generate QR code for {{ client_name }}
+      shell: qrencode -t ansiutf8  < {{ work_dir }}/{{ client_name }}-full.conf  > {{ work_dir }}/{{ client_name }}-qr-full
+      tags: qr
