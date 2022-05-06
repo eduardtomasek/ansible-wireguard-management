@@ -12,7 +12,7 @@
       ansible.builtin.file:
         path: {{ config_dir }}
         state: directory
-        mode: '0755'
+        mode: '0600'
 
     - name: Generate server keys
       shell:
