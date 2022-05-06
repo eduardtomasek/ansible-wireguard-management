@@ -37,6 +37,9 @@
       command: wg-quick down {{ wgname }}
       register: wireguardstop
       tags: wireguardrestart
+    - debug:
+        var: wireguardstop.stderr_lines
+      tags: wireguardrestart
 
     - name: Add {{ client_name }} to the server
       blockinfile:
@@ -47,16 +50,11 @@
             [Peer]
             PublicKey = {{ clientpublickey.stdout }}
             AllowedIPs = {{ client_ip }}/32
-            
-    - debug:
-        var: wireguardstop.stderr_lines
-      tags: wireguardrestart
 
     - name: Start wireguard for {{ wgname }}
       command: wg-quick up {{ wgname }}
       register: wireguardstart
       tags: wireguardrestart
-
     - debug:
         var: wireguardstart.stderr_lines
       tags: wireguardrestart
