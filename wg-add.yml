@@ -44,12 +44,12 @@
     - name: Add {{ client_name }} to the server
       blockinfile:
         path: '/etc/wireguard/{{ wgname }}.conf'
-        marker: "## Added by Ansible"
         block: |
             # {{ client_name }}
             [Peer]
             PublicKey = {{ clientpublickey.stdout }}
             AllowedIPs = {{ client_ip }}/32
+        marker: "# {mark} ANSIBLE MANAGED BLOCK {{ clientpublickey.stdout }}"
 
     - name: Start wireguard for {{ wgname }}
       command: wg-quick up {{ wgname }}
