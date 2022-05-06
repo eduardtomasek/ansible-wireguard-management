@@ -49,6 +49,7 @@
             [Peer]
             PublicKey = {{ clientpublickey.stdout }}
             AllowedIPs = {{ client_ip }}/32
+            PersistentKeepalive = 30
         marker: "# {mark} ANSIBLE MANAGED BLOCK {{ clientpublickey.stdout }}"
 
     - name: Start wireguard for {{ wgname }}
